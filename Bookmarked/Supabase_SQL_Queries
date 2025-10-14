@@ -1,0 +1,144 @@
+------ Query 1- Create Profiles table -----
+CREATE TABLE profiles (
+  user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  email TEXT NOT NULL,
+  phone_number TEXT UNIQUE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX idx_profiles_phone ON profiles(phone_number);
+
+
+
+
+------ Query 2 - Create Bookmarks table -----
+CREATE TABLE bookmarks (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  url TEXT NOT NULL,
+  description TEXT,
+  tags TEXT[] NOT NULL DEFAULT '{}',
+  reading BOOLEAN DEFAULT FALSE,
+  category TEXT DEFAULT 'Other',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  CONSTRAINT tags_not_empty CHECK (array_length(tags, 1) > 0)
+);
+CREATE INDEX idx_bookmarks_user_id ON bookmarks(user_id);
+CREATE INDEX idx_bookmarks_tags ON bookmarks USING GIN(tags);
+CREATE INDEX idx_bookmarks_reading ON bookmarks(user_id, reading) WHERE reading = true;
+CREATE INDEX idx_bookmarks_created ON bookmarks(user_id, created_at DESC);
+
+
+
+
+------ Query 3 - RLS for Profiles Table -----
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+-- Users can read their own profile
+CREATE POLICY "Users can view own profile"
+  ON profiles FOR SELECT
+  USING (auth.uid() = user_id);
+-- Users can update their own profile
+CREATE POLICY "Users can update own profile"
+  ON profiles FOR UPDATE
+  USING (auth.uid() = user_id);
+-- System can insert profiles (triggered on signup)
+CREATE POLICY "Enable insert for authenticated users"
+  ON profiles FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+
+
+
+------ Query 4 - RLS for Bookmarks Table -----
+ALTER TABLE bookmarks ENABLE ROW LEVEL SECURITY;
+-- Users can only see their own bookmarks
+CREATE POLICY "Users can view own bookmarks"
+  ON bookmarks FOR SELECT
+  USING (auth.uid() = user_id);
+-- Users can insert their own bookmarks
+CREATE POLICY "Users can insert own bookmarks"
+  ON bookmarks FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+-- Users can update their own bookmarks
+CREATE POLICY "Users can update own bookmarks"
+  ON bookmarks FOR UPDATE
+  USING (auth.uid() = user_id);
+-- Users can delete their own bookmarks
+CREATE POLICY "Users can delete own bookmarks"
+  ON bookmarks FOR DELETE
+  USING (auth.uid() = user_id);
+
+
+
+
+------ Query 5 - Auto-update updated column -----
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER update_bookmarks_updated_at
+  BEFORE UPDATE ON bookmarks
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_profiles_updated_at
+  BEFORE UPDATE ON profiles
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
+
+
+
+------ Query 6 - Auto-create profile for new users -----
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.profiles (user_id, email)
+  VALUES (NEW.id, NEW.email);
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW
+  EXECUTE FUNCTION public.handle_new_user();
+
+
+
+
+------ Query 7 - Lookup by phone -----
+CREATE POLICY "Users can view own profile or query by phone"
+ON "public"."profiles"
+FOR SELECT
+TO public
+USING (
+  auth.uid() = user_id 
+  OR phone_number IS NOT NULL  -- allows phone lookups
+);
+
+
+
+
+------ Query 8 - Bookmarks insert access control -----
+-- First, drop the existing policy
+DROP POLICY IF EXISTS "Users can insert own bookmarks" ON "public"."bookmarks";
+
+-- Then create the new policy with your conditions
+CREATE POLICY "Users can insert own bookmarks"
+ON "public"."bookmarks"
+FOR INSERT
+TO public
+WITH CHECK (
+  auth.uid() = user_id 
+  OR (
+    user_id IS NOT NULL 
+    AND EXISTS (SELECT 1 FROM profiles WHERE profiles.user_id = bookmarks.user_id)
+  )
+);
