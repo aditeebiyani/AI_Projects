@@ -1,0 +1,905 @@
+{
+  "name": "Bookmarked_withoutToolUse",
+  "nodes": [
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('Webhook').item.json.body.messages[0].text.body || $('Webhook').item.json.body.messages[0].link_preview.body }}",
+        "options": {
+          "systemMessage": "You are a helpful assistant who classifies user intent for a bookmark management system.\n\nCLASSIFICATION RULES:\nAnalyze the user's message and classify it into one of these intents:\n1. create_bookmark - User wants to save a URL\n2. get_reading_list - User wants to see their reading list\n3. search_tag_text - User wants to search bookmarks by tag or text\n4. other - Intent is unclear or doesn't match above\n\nRESPONSE FORMAT:\nYou must respond ONLY with valid JSON in this exact format:\n\n{\n  \"intent\": \"<intent_name>\",\n  \"confidence\": <0.0-1.0>,\n  \"extracted_data\": {\n    \"url\": \"<string or null>\",\n    \"title\": \"<string or null>\",\n    \"tags\": [\"<array of strings or empty>\"],\n    \"reading\": <true/false/null>,\n    \"search_query\": \"<string or null>\",\n  },\n  \"missing_fields\": [\"<array of missing required fields>\"],\n  \"clarification_needed\": <true/false>,\n  \"response_message\": \"<message to user>\"\n}\n\nEXTRACTION RULES:\n- For create_bookmark: Extract url, title, tags, reading status\n- For search_tag_text: Extract search_query\n- For get_reading_list: No extraction needed\n- Set clarification_needed=true if missing required fields\n\nREQUIRED FIELDS BY INTENT:\n- create_bookmark: url (required), title (required), tags (required), reading (optional, default: false)\n- get_reading_list: none\n- search_tag_text: search_query (required)\n\nRESPONSE MESSAGES:\n- If clarification_needed=true, ask for missing information\n- If clarification_needed=false, confirm the action\n- For \"other\" intent, provide menu of options\n- If someone says - I'm bored or any variation of it, share their reading list with them\n\nDo not include any text outside the JSON structure. Do not use markdown code blocks."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        80,
+        -64
+      ],
+      "id": "9e1c9f30-e42d-4ff2-a387-9690fa823e84",
+      "name": "AI Agent",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "tableId": "bookmarks",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "title",
+              "fieldValue": "={{ $('AI Agent').item.json.output.parseJson().extracted_data.title }}"
+            },
+            {
+              "fieldId": "url",
+              "fieldValue": "={{ $('AI Agent').item.json.output.parseJson().extracted_data.url }}"
+            },
+            {
+              "fieldId": "tags",
+              "fieldValue": "={{ $('AI Agent').item.json.output.parseJson().extracted_data.tags }}"
+            },
+            {
+              "fieldId": "user_id",
+              "fieldValue": "={{ $json.user_id }}"
+            },
+            {
+              "fieldId": "reading",
+              "fieldValue": "={{ $('AI Agent').item.json.output.parseJson().extracted_data.reading || \"false\" }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1104,
+        -352
+      ],
+      "id": "892f6f23-ccb7-4d36-80d4-c01d761bd5f0",
+      "name": "Create a row",
+      "credentials": {
+        "supabaseApi": {
+          "id": "TZBsAIy1aNTsi7qq",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {
+          "temperature": 0.3
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        96,
+        176
+      ],
+      "id": "37068326-ecc8-4d0d-889d-8e984fe3b422",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "MlNOo9W2UMy5CWH5",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "f680fbf0-ae4d-4692-8e8e-b1fa9034527c",
+              "leftValue": "={{ $json.output.parseJson().extracted_data.url }}",
+              "rightValue": "null",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "cfdb1fdb-3879-4f24-8536-2f546318cb7f",
+              "leftValue": "={{ $json.output.parseJson().extracted_data.title }}",
+              "rightValue": "null",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            },
+            {
+              "id": "98ef633a-af02-43cd-9273-db8020ca93d6",
+              "leftValue": "={{ $json.output.parseJson().extracted_data.tags}}",
+              "rightValue": "null",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            },
+            {
+              "id": "2178d132-03a8-47a0-9ff0-45e48892108d",
+              "leftValue": "={{ $json.output.parseJson().clarification_needed}}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "0a18a69c-78ee-4531-a150-83e76b028319",
+              "leftValue": "={{ $json.output.parseJson().missing_fields}}",
+              "rightValue": "",
+              "operator": {
+                "type": "array",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        656,
+        -416
+      ],
+      "id": "1c6e5b7a-d013-466b-b9e6-ea9cb1727ce3",
+      "name": "If3"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('Webhook').first().json.body.messages[0].text.body }}",
+        "options": {
+          "systemMessage": "=You are a helpful assistant who helps users with their reading lists and search requests.\n\nLIST:\n{{ $json.list }}\n\nResponse Format:\nHere is your reading list:\n1. Title - <url> \n2. Title - <url>"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        1328,
+        -64
+      ],
+      "id": "d142f2e9-bfc3-4b59-9f55-03467eb32f48",
+      "name": "AI Agent1"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bookmarked",
+        "options": {
+          "ignoreBots": true
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -368,
+        -64
+      ],
+      "id": "f08e7456-d940-46d0-93cd-9fdd5dfd607a",
+      "name": "Webhook",
+      "webhookId": "8dc11232-17de-49b7-9e3c-5eae1581aedc"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://gate.whapi.cloud/messages/text",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpBearerAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "to",
+              "value": "={{ $('Webhook').item.json.body.messages[0].from }}"
+            },
+            {
+              "name": "body",
+              "value": "={{ $('AI Agent').item.json.output.parseJson().response_message }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1392,
+        -416
+      ],
+      "id": "8f67a4c6-bf94-4352-834b-858dcbda976f",
+      "name": "HTTP Request",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "xBZjs1RHrjnriafX",
+          "name": "Bearer Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "9b2fa55e-9c6c-435c-94ea-6c140796ff0d",
+              "leftValue": "={{ $json.body.messages[0].from_me }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        -144,
+        -64
+      ],
+      "id": "fa2f98ca-acf4-4d69-9760-5903150288ee",
+      "name": "Filter"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://gate.whapi.cloud/messages/text",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpBearerAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "to",
+              "value": "={{ $('Webhook').item.json.body.messages[0].from }}"
+            },
+            {
+              "name": "body",
+              "value": "={{ $('AI Agent').item.json.output.parseJson().response_message }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        656,
+        240
+      ],
+      "id": "f7212c3b-c88b-4bc4-a912-d086e749418a",
+      "name": "HTTP Request1",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "xBZjs1RHrjnriafX",
+          "name": "Bearer Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://gate.whapi.cloud/messages/text",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpBearerAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "to",
+              "value": "={{ $('Webhook').first().json.body.messages[0].from }}"
+            },
+            {
+              "name": "body",
+              "value": "={{ $json.output }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1680,
+        -64
+      ],
+      "id": "958587f4-3016-41a3-b63c-10907f5d7913",
+      "name": "HTTP Request2",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "xBZjs1RHrjnriafX",
+          "name": "Bearer Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "profiles",
+        "limit": 1,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "phone_number",
+              "condition": "eq",
+              "keyValue": "={{ \"+\" + $('Webhook').item.json.body.messages[0].from }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        880,
+        -352
+      ],
+      "id": "deab707b-9dc0-4763-bd4c-395c69d211dc",
+      "name": "Get user id",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "TZBsAIy1aNTsi7qq",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "bookmarks",
+        "limit": 5,
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "reading",
+              "condition": "eq",
+              "keyValue": "TRUE"
+            },
+            {
+              "keyName": "user_id",
+              "condition": "eq",
+              "keyValue": "={{ $json.user_id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        880,
+        -160
+      ],
+      "id": "21200e64-2ab9-4d4c-a905-e747c4d505ab",
+      "name": "Get reading list",
+      "credentials": {
+        "supabaseApi": {
+          "id": "TZBsAIy1aNTsi7qq",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "bookmarks",
+        "limit": 5,
+        "filterType": "string",
+        "filterString": "=user_id=eq.{{ $json.user_id }}&or(title.ilike.*{{ $('AI Agent').first().json.output.parseJson().extracted_data.search_query }}*,description.ilike.*{{ $('AI Agent').first().json.output.parseJson().extracted_data.search_query }}*,tags.ilike.*{{ $('AI Agent').first().json.output.parseJson().extracted_data.search_query }}*,url.ilike.*{{ $('AI Agent').first().json.output.parseJson().extracted_data.search_query }}*)"
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        880,
+        48
+      ],
+      "id": "c2abb506-6c8d-495c-81f7-f159592d8a21",
+      "name": "Get search string",
+      "credentials": {
+        "supabaseApi": {
+          "id": "TZBsAIy1aNTsi7qq",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        1216,
+        160
+      ],
+      "id": "372c1f31-1553-4780-b77a-f34d7dba0d55",
+      "name": "Google Gemini Chat Model1",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "MlNOo9W2UMy5CWH5",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Merge all bookmark items into one text list\nconst items = $input.all();\n\nconst list = items.map((item, i) => {\n  const title = item.json.title || \"Untitled\";\n  const url = item.json.url || \"No URL\";\n  const desc = item.json.description ? ` - ${item.json.description}` : \"\";\n  return `${i + 1}. ${title}${desc}\\nURL: ${url}`;\n}).join('\\n\\n');\n\nreturn [{ json: { list } }];\n\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1104,
+        -64
+      ],
+      "id": "f6fc3e79-dd82-4e41-a4b1-02aad5c2b9fb",
+      "name": "Merge all inputs into a string"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.output.parseJson().intent }}",
+                    "rightValue": "create_bookmark",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "4f78f87c-a388-4837-aed9-161b3b9d8ee2"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Create Bookmark"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "3fbb204e-5497-4cb6-83a8-4a2a3157bd4e",
+                    "leftValue": "={{ $json.output.parseJson().intent }}",
+                    "rightValue": "get_reading_list",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Get reading list"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "fe5ab402-aac3-457c-8917-41e12b690550",
+                    "leftValue": "={{ $json.output.parseJson().intent }}",
+                    "rightValue": "search_tag_text",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Search Tag/Text"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.3,
+      "position": [
+        432,
+        -96
+      ],
+      "id": "2203e133-5ed2-4922-b8c7-ef71f325375c",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "profiles",
+        "limit": 1,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "phone_number",
+              "condition": "eq",
+              "keyValue": "={{ \"+\" + $('Webhook').item.json.body.messages[0].from }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        656,
+        -160
+      ],
+      "id": "1698288d-3f94-4b88-9b2a-7730186d0663",
+      "name": "Get user id1",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "TZBsAIy1aNTsi7qq",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "profiles",
+        "limit": 1,
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "phone_number",
+              "condition": "eq",
+              "keyValue": "={{ \"+\" + $('Webhook').item.json.body.messages[0].from }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        656,
+        48
+      ],
+      "id": "fca67b36-33e1-42c2-8fb3-e17fdc33e3b4",
+      "name": "Get user id2",
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "TZBsAIy1aNTsi7qq",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.body.messages[0].from }}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        256,
+        256
+      ],
+      "id": "1c616140-470e-4c08-b004-2fbc52d79a53",
+      "name": "Simple Memory"
+    }
+  ],
+  "pinData": {
+    "Webhook": [
+      {
+        "json": {
+          "headers": {
+            "host": "aditeebiyani0411.app.n8n.cloud",
+            "content-length": "419",
+            "accept": "application/json",
+            "accept-encoding": "gzip, br",
+            "baggage": "sentry-environment=prod,sentry-public_key=22217dc31eef5d21afad60404664acb9,sentry-trace_id=a52bb5d639c5eaa6492babab188c5ad0,sentry-sample_rand=0.38496170423799025",
+            "cdn-loop": "cloudflare; loops=1; subreqs=1",
+            "cf-connecting-ip": "65.108.100.231",
+            "cf-ew-via": "15",
+            "cf-ipcountry": "FI",
+            "cf-ray": "98f2285d33159220-FRA",
+            "cf-visitor": "{\"scheme\":\"https\"}",
+            "cf-worker": "n8n.cloud",
+            "content-type": "application/json",
+            "sentry-trace": "a52bb5d639c5eaa6492babab188c5ad0-b9512e5717e7e15b",
+            "x-forwarded-for": "65.108.100.231, 172.70.242.116",
+            "x-forwarded-host": "aditeebiyani0411.app.n8n.cloud",
+            "x-forwarded-port": "443",
+            "x-forwarded-proto": "https",
+            "x-forwarded-server": "traefik-prod-users-gwc-60-78f959c455-hpwwn",
+            "x-is-trusted": "yes",
+            "x-real-ip": "65.108.100.231"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "messages": [
+              {
+                "id": "rJrvaergU6mb7TBdSBjPUg-gMzWKlx_eA",
+                "from_me": false,
+                "type": "text",
+                "chat_id": "919833706360@s.whatsapp.net",
+                "timestamp": 1760561099,
+                "source": "mobile",
+                "chat_name": "Aditee",
+                "text": {
+                  "body": "Add https://www.thoughtworks.com/en-in/insights/decoder/a/ai-evals\nAI Evals\nTags - ai, ai evals"
+                },
+                "from": "919833706360",
+                "from_name": "Aditee"
+              }
+            ],
+            "event": {
+              "type": "messages",
+              "event": "post"
+            },
+            "channel_id": "SHAZAM-L9YEV"
+          },
+          "webhookUrl": "https://aditeebiyani0411.app.n8n.cloud/webhook-test/bookmarked",
+          "executionMode": "test"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a row": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If3": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get user id",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent1": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Filter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get user id": {
+      "main": [
+        [
+          {
+            "node": "Create a row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get reading list": {
+      "main": [
+        [
+          {
+            "node": "Merge all inputs into a string",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get search string": {
+      "main": [
+        [
+          {
+            "node": "Merge all inputs into a string",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "If3",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get user id1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get user id2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge all inputs into a string": {
+      "main": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get user id1": {
+      "main": [
+        [
+          {
+            "node": "Get reading list",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get user id2": {
+      "main": [
+        [
+          {
+            "node": "Get search string",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1c2d91a6-f5fc-4f02-bc87-35dc76484fc2",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "6e1e3c5b6cca854c509fe528647750e69d5d433d07128da90235ac8d4cec3f97"
+  },
+  "id": "HPvM2TmKzooE4zT1",
+  "tags": []
+}
