@@ -1,11 +1,14 @@
 Bookmarked
 
 Webapp - https://bookmarked.lovable.app/
-Demo of chat interface - 
-  https://www.loom.com/share/351b511b8b9d49ee8523629dffe2433f?sid=261c6cc0-c0eb-44b7-b0d3-3a3f79561411
-  https://www.loom.com/share/43660f5342d64dca8c2415447448f729?sid=a73378a2-f072-48d9-a7df-c08f5d8dc52c
+Demo of chat workflow - 
+  https://www.loom.com/share/78836b4bfedb4851855e597288729d71?sid=5097d1cc-046a-427e-8a56-482bf845c1a6
+  https://www.loom.com/share/b62d2d30f8054625aeb869a697b689af?sid=dd57e13c-a68f-4441-8fb1-9e8e684d1942
 Demo of Webapp - https://www.loom.com/share/7923a367c3b748cf94bae39488413b17?sid=2b5b1300-6d41-4b7a-9a77-b3717037e2d7
 n8n Workflows - 
-  https://github.com/aditeebiyani/AI_Projects/blob/main/Bookmarked/Bookmarked_withToolUse.json
-  https://github.com/aditeebiyani/AI_Projects/blob/main/Bookmarked/Bookmarked_withoutToolUse.json
+  https://github.com/aditeebiyani/AI_Projects/blob/main/Bookmarked/Bookmarked_withToolUse_CreateBookmark.json
+  https://github.com/aditeebiyani/AI_Projects/blob/main/Bookmarked/Bookmarked_withToolUse_GetReadingList.json
+  https://github.com/aditeebiyani/AI_Projects/blob/main/Bookmarked/Bookmarked_withToolUse_SearchString.json
+  https://github.com/aditeebiyani/AI_Projects/blob/main/Bookmarked/Bookmarked_withoutToolUse_GetReadingList.json
+  https://github.com/aditeebiyani/AI_Projects/blob/main/Bookmarked/Bookmarked_withoutToolUse_createBookmark.json
 REadme document - https://github.com/aditeebiyani/AI_Projects/blob/main/Bookmarked/readme.md
